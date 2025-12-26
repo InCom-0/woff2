@@ -14,6 +14,12 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(CANONICAL_PREFIXES "Canonical prefixes" OFF)
 option(NOISY_LOGGING "Noisy logging" ON)
 
+# We must override to force STATIC build on Windows with MSVC (nowhere else) 
+if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+  message(STATUS "Switching to static build for MSVC or Clang-cl (native Windows)")
+  set(BUILD_SHARED_LIBS OFF)
+endif()
+
 # Version information
 set(WOFF2_VERSION 1.0.2)
 
@@ -30,7 +36,7 @@ set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR}" isSystemDir)
-if ("${isSystemDir}" STREQUAL "-1")
+if("${isSystemDir}" STREQUAL "-1")
   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR}")
 endif()
 
@@ -59,51 +65,73 @@ set(BROTLIDEC_LIBRARIES brotlidec brotlicommon)
 set(BROTLIENC_LIBRARIES brotlienc brotlicommon)
 
 # Set compiler flags
-if (NOT CANONICAL_PREFIXES)
-    add_definitions(-no-canonical-prefixes)
-  endif ()
-if (NOISY_LOGGING)
-    add_definitions(-DFONT_COMPRESSION_BIN)
-endif ()
+if(NOT CANONICAL_PREFIXES)
+  if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+  else()
+    add_compile_options(-no-canonical-prefixes)
+    # add_definitions(-no-canonical-prefixes)
+  endif()
+endif()
+if(NOISY_LOGGING)
+  add_definitions(-DFONT_COMPRESSION_BIN)
+endif()
 add_definitions(-D__STDC_FORMAT_MACROS)
-set(COMMON_FLAGS -fno-omit-frame-pointer)
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    add_definitions(-DOS_MACOSX)
-else ()
-    set(COMMON_FLAGS "${COMMON_FLAGS} -fno-omit-frame-pointer")
+if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+  add_compile_options(/Oy-)
+else()
+  add_compile_options(-fno-omit-frame-pointer)
+  # set(COMMON_FLAGS -fno-omit-frame-pointer)
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_FLAGS}")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  add_definitions(-DOS_MACOSX)
+endif()
+
 set(CMAKE_CXX_STANDARD 11)
+
+# Suppression of warnings
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  add_compile_options(/wd4267 /wd4244 /wd4018 /wd4477)
+elseif((CMAKE_CXX_COMPILER_ID STREQUAL "Clang") AND (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"))
+  add_compile_options(
+    -Wno-unused-variable
+    -Wno-unused-const-variable
+    -Wno-unused-but-set-variable
+    -Wno-format
+  )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  add_compile_options(
+    -Wno-format
+  )
+endif()
 
 # Set search path for our private/public headers as well as Brotli headers
 include_directories("src" "include"
-                    "${BROTLIDEC_INCLUDE_DIRS}" "${BROTLIENC_INCLUDE_DIRS}")
+  "${BROTLIDEC_INCLUDE_DIRS}" "${BROTLIENC_INCLUDE_DIRS}")
 
 # Common part used by decoder and encoder
 add_library(woff2common
-            src/table_tags.cc
-            src/variable_length.cc
-            src/woff2_common.cc)
+  src/table_tags.cc
+  src/variable_length.cc
+  src/woff2_common.cc)
 
 # WOFF2 Decoder
 add_library(woff2dec
-            src/woff2_dec.cc
-            src/woff2_out.cc)
+  src/woff2_dec.cc
+  src/woff2_out.cc)
 target_link_libraries(woff2dec woff2common "${BROTLIDEC_LIBRARIES}")
 add_executable(woff2_decompress src/woff2_decompress.cc)
 target_link_libraries(woff2_decompress woff2dec)
 
 # WOFF2 Encoder
 add_library(woff2enc
-            src/font.cc
-            src/glyph.cc
-            src/normalize.cc
-            src/transform.cc
-            src/woff2_enc.cc)
+  src/font.cc
+  src/glyph.cc
+  src/normalize.cc
+  src/transform.cc
+  src/woff2_enc.cc)
 target_link_libraries(woff2enc woff2common "${BROTLIENC_LIBRARIES}")
 add_executable(woff2_compress src/woff2_compress.cc)
 target_link_libraries(woff2_compress woff2enc)
@@ -172,13 +200,13 @@ function(generate_pkg_config_path outvar path)
 endfunction(generate_pkg_config_path)
 
 function(generate_pkg_config output_file)
-  set (options)
-  set (oneValueArgs NAME DESCRIPTION URL VERSION PREFIX LIBDIR INCLUDEDIR)
-  set (multiValueArgs DEPENDS DEPENDS_PRIVATE CFLAGS LIBRARIES)
+  set(options)
+  set(oneValueArgs NAME DESCRIPTION URL VERSION PREFIX LIBDIR INCLUDEDIR)
+  set(multiValueArgs DEPENDS DEPENDS_PRIVATE CFLAGS LIBRARIES)
   cmake_parse_arguments(GEN_PKG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-  unset (options)
-  unset (oneValueArgs)
-  unset (multiValueArgs)
+  unset(options)
+  unset(oneValueArgs)
+  unset(multiValueArgs)
 
   if(NOT GEN_PKG_PREFIX)
     set(GEN_PKG_PREFIX "${CMAKE_INSTALL_PREFIX}")
@@ -196,7 +224,7 @@ function(generate_pkg_config output_file)
   generate_pkg_config_path(GEN_PKG_INCLUDEDIR "${GEN_PKG_INCLUDEDIR}"
     prefix "${GEN_PKG_PREFIX}")
 
-  file(WRITE  "${output_file}" "prefix=${GEN_PKG_PREFIX}\n")
+  file(WRITE "${output_file}" "prefix=${GEN_PKG_PREFIX}\n")
   file(APPEND "${output_file}" "libdir=${GEN_PKG_LIBDIR}\n")
   file(APPEND "${output_file}" "includedir=${GEN_PKG_INCLUDEDIR}\n")
   file(APPEND "${output_file}" "\n")
@@ -250,14 +278,14 @@ function(generate_pkg_config output_file)
   file(APPEND "${output_file}" "\n")
 endfunction(generate_pkg_config)
 
-generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/libwoff2common.pc"
+generate_pkg_config("${CMAKE_CURRENT_BINARY_DIR}/libwoff2common.pc"
   NAME libwoff2common
   DESCRIPTION "Shared data used by libwoff2 and libwoff2dec libraries"
   URL "https://github.com/google/woff2"
   VERSION "${WOFF2_VERSION}"
   LIBRARIES woff2common)
 
-generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/libwoff2dec.pc"
+generate_pkg_config("${CMAKE_CURRENT_BINARY_DIR}/libwoff2dec.pc"
   NAME libwoff2dec
   DESCRIPTION "WOFF2 decoder library"
   URL "https://github.com/google/woff2"
@@ -266,7 +294,7 @@ generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/libwoff2dec.pc"
   DEPENDS_PRIVATE libwoff2common
   LIBRARIES woff2dec)
 
-generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/libwoff2enc.pc"
+generate_pkg_config("${CMAKE_CURRENT_BINARY_DIR}/libwoff2enc.pc"
   NAME libwoff2enc
   DESCRIPTION "WOFF2 encoder library"
   URL "https://github.com/google/woff2"
@@ -276,7 +304,7 @@ generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/libwoff2enc.pc"
   LIBRARIES woff2enc)
 
 # Installation
-if (NOT BUILD_SHARED_LIBS)
+if(NOT BUILD_SHARED_LIBS)
   install(
     TARGETS woff2_decompress woff2_compress woff2_info
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
