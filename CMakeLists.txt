@@ -111,6 +111,7 @@ endif()
 include_directories(src include
   ${BROTLIDEC_INCLUDE_DIRS} ${BROTLIENC_INCLUDE_DIRS})
 
+
 # Common part used by decoder and encoder
 add_library(woff2common
   src/table_tags.cc
@@ -135,6 +136,49 @@ add_library(woff2enc
 target_link_libraries(woff2enc woff2common "${BROTLIENC_LIBRARIES}")
 add_executable(woff2_compress src/woff2_compress.cc)
 target_link_libraries(woff2_compress woff2enc)
+
+target_sources(woff2common
+  PUBLIC
+  FILE_SET pub_headers
+  TYPE HEADERS
+  BASE_DIRS
+  include)
+
+target_sources(woff2common
+  PRIVATE
+  FILE_SET priv_headers
+  TYPE HEADERS
+  BASE_DIRS
+  src)
+
+target_sources(woff2dec
+  PUBLIC
+  FILE_SET pub_headers
+  TYPE HEADERS
+  BASE_DIRS
+  include)
+
+target_sources(woff2dec
+  PRIVATE
+  FILE_SET priv_headers
+  TYPE HEADERS
+  BASE_DIRS
+  src)
+
+target_sources(woff2enc
+  PUBLIC
+  FILE_SET pub_headers
+  TYPE HEADERS
+  BASE_DIRS
+  include)
+
+target_sources(woff2enc
+  PRIVATE
+  FILE_SET priv_headers
+  TYPE HEADERS
+  BASE_DIRS
+  src)
+
 
 # WOFF2 info
 add_executable(woff2_info src/woff2_info.cc)
