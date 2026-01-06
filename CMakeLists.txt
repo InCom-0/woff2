@@ -108,8 +108,8 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 # Set search path for our private/public headers as well as Brotli headers
-include_directories("src" "include"
-  "${BROTLIDEC_INCLUDE_DIRS}" "${BROTLIENC_INCLUDE_DIRS}")
+include_directories(src include
+  ${BROTLIDEC_INCLUDE_DIRS} ${BROTLIENC_INCLUDE_DIRS})
 
 # Common part used by decoder and encoder
 add_library(woff2common
