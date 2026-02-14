@@ -117,11 +117,13 @@ add_library(woff2common
   src/table_tags.cc
   src/variable_length.cc
   src/woff2_common.cc)
+add_library(WOFF2::woff2common ALIAS woff2common)
 
 # WOFF2 Decoder
 add_library(woff2dec
   src/woff2_dec.cc
   src/woff2_out.cc)
+add_library(WOFF2::woff2dec ALIAS woff2dec)
 target_link_libraries(woff2dec woff2common "${BROTLIDEC_LIBRARIES}")
 add_executable(woff2_decompress src/woff2_decompress.cc)
 target_link_libraries(woff2_decompress woff2dec)
@@ -133,6 +135,7 @@ add_library(woff2enc
   src/normalize.cc
   src/transform.cc
   src/woff2_enc.cc)
+add_library(WOFF2::woff2enc ALIAS woff2enc)
 target_link_libraries(woff2enc woff2common "${BROTLIENC_LIBRARIES}")
 add_executable(woff2_compress src/woff2_compress.cc)
 target_link_libraries(woff2_compress woff2enc)
